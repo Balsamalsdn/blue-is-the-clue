@@ -25,6 +25,14 @@ export default async function handler(req, res) {
       apiKey,
       model: "claude-sonnet-5",
       maxTokens: 1000,
+      temperature: 1,
+      // LangChain's ChatAnthropic can compute its own top_p internally and
+      // override a plain `topP` constructor option in some versions. Passing
+      // it via modelKwargs forces it straight into the raw request body,
+      // bypassing that internal computation.
+      modelKwargs: {
+        top_p: 1,
+      },
     });
 
     // Anthropic's server-side tools (like web_search) aren't a first-class

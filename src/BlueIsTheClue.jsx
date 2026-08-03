@@ -76,18 +76,15 @@ async function callClaude({ system, messages, tools }) {
   return textParts.join("\n").trim();
 }
 
-function Stamp({ kind }) {
+function BubbleTag({ kind }) {
   const map = {
     matched: { label: "MATCHED IN FILE", color: "#2F9E8F" },
     unsolved: { label: "UNSOLVED", color: "#D8574B" },
-    wire: { label: "CONFIRMED VIA WIRE", color: "#2A5CDE" },
+    wire: { label: "FROM WEB SEARCH", color: "#2A5CDE" },
   };
   const s = map[kind];
   return (
-    <div
-      className="stamp"
-      style={{ borderColor: s.color, color: s.color }}
-    >
+    <div className="bubble-tag" style={{ color: s.color }}>
       {s.label}
     </div>
   );
@@ -356,13 +353,21 @@ ${contextBlock}`;
           font-size: 14.5px;
           line-height: 1.55;
         }
+        .bubble-tag {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.07em;
+          margin-bottom: 6px;
+          opacity: 0.9;
+        }
         .clue-card {
-          background: var(--paper);
-          color: var(--ink);
-          border-radius: 4px;
-          border-left: 5px solid var(--blue);
-          padding: 12px 14px;
-          box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+          background: rgba(255,255,255,0.05);
+          color: var(--paper);
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-left: 3px solid var(--blue);
+          padding: 10px 12px;
         }
         .clue-card-head {
           display: flex;
@@ -379,38 +384,16 @@ ${contextBlock}`;
           padding: 2px 7px;
           border-radius: 3px;
         }
-        .clue-question { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 4px; font-style: italic; }
-        .clue-answer { font-size: 14px; line-height: 1.55; }
+        .clue-question { font-size: 12px; color: rgba(238,241,246,0.55); margin-bottom: 4px; font-style: italic; }
+        .clue-answer { font-size: 13.5px; line-height: 1.5; color: rgba(238,241,246,0.9); }
 
-        .answer-card {
-          background: var(--paper);
-          color: var(--ink);
-          border-radius: 4px;
-          padding: 14px 16px;
-          box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-          position: relative;
-          border-left: 5px solid var(--teal);
-        }
-        .answer-card.not-found { border-left-color: var(--coral); }
-        .answer-card.web { border-left-color: var(--blue); }
         .answer-text { font-size: 14.5px; line-height: 1.6; }
-        .stamp {
-          display: inline-block;
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          border: 2px dashed;
-          padding: 3px 8px;
-          border-radius: 3px;
-          transform: rotate(-3deg);
-          margin-bottom: 8px;
-        }
         .feedback-row {
           display: flex;
           align-items: center;
           gap: 8px;
           margin-top: 10px;
+          flex-wrap: wrap;
         }
         .fb-btn {
           display: flex;
@@ -420,13 +403,13 @@ ${contextBlock}`;
           font-size: 11px;
           font-weight: 600;
           letter-spacing: 0.03em;
-          border: 1px solid rgba(22,35,61,0.25);
-          background: white;
-          color: var(--ink);
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(255,255,255,0.06);
+          color: var(--paper);
           padding: 6px 10px;
           border-radius: 5px;
           cursor: pointer;
-          transition: transform 0.1s ease;
+          transition: transform 0.1s ease, border-color 0.15s ease, color 0.15s ease;
         }
         .fb-btn:hover { transform: translateY(-1px); }
         .fb-btn.up:hover { border-color: var(--teal); color: var(--teal); }
@@ -434,7 +417,7 @@ ${contextBlock}`;
         .fb-note {
           font-family: 'IBM Plex Mono', monospace;
           font-size: 11px;
-          color: var(--ink-soft);
+          color: rgba(238,241,246,0.5);
         }
         .loading-row {
           display: flex;
@@ -493,7 +476,7 @@ ${contextBlock}`;
         .web-q {
           font-family: 'IBM Plex Mono', monospace;
           font-size: 11px;
-          color: var(--ink-soft);
+          color: rgba(238,241,246,0.5);
           margin-bottom: 6px;
         }
         @media (max-width: 600px) {
@@ -539,8 +522,8 @@ ${contextBlock}`;
           if (m.role === "assistant") {
             return (
               <div key={idx} className="assistant-wrap">
-                <div className={"answer-card" + (m.notFound ? " not-found" : "")}>
-                  <Stamp kind={m.notFound ? "unsolved" : "matched"} />
+                <div className="chat-bubble">
+                  <BubbleTag kind={m.notFound ? "unsolved" : "matched"} />
                   <div className="answer-text">{m.content}</div>
 
                   {m.matches && m.matches.length > 0 && !m.notFound && (
@@ -580,8 +563,8 @@ ${contextBlock}`;
           if (m.role === "web-result") {
             return (
               <div key={idx} className="assistant-wrap">
-                <div className="answer-card web">
-                  <Stamp kind="wire" />
+                <div className="chat-bubble">
+                  <BubbleTag kind="wire" />
                   <div className="web-q">RE: {m.question}</div>
                   <div className="answer-text">{m.content}</div>
                   {!m.failed && !m.added && (

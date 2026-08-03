@@ -105,22 +105,77 @@ function ClueCard({ entry }) {
   );
 }
 
+const STORAGE_KEY_DATASET = "blue-is-the-clue:added-records";
+const STORAGE_KEY_THREAD = "blue-is-the-clue:thread";
+const STORAGE_KEY_HISTORY = "blue-is-the-clue:history";
+
+function loadAddedRecords() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DATASET);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadSavedThread() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_THREAD);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadSavedHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function BlueIsTheClue() {
-  const [dataset, setDataset] = useState(RAW_DATA);
+  const [dataset, setDataset] = useState(() => [...RAW_DATA, ...loadAddedRecords()]);
   const [query, setQuery] = useState("");
-  const [thread, setThread] = useState([
-    {
-      role: "system-note",
-      content:
-        "Case file loaded: " + RAW_DATA.length + " medical records on file. Say hi, or ask about a condition.",
-    },
-  ]);
+  const [thread, setThread] = useState(() => {
+    const saved = loadSavedThread();
+    if (saved && saved.length > 0) return saved;
+    return [
+      {
+        role: "system-note",
+        content:
+          "Case file loaded: " + RAW_DATA.length + " medical records on file. Say hi, or ask about a condition.",
+      },
+    ];
+  });
   // Plain conversation history (role/content only) sent to Claude each turn, so it remembers context.
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [webLoading, setWebLoading] = useState(false);
   const scrollRef = useRef(null);
-  const historyRef = useRef([]); // running conversation memory sent to Claude (plain text turns)
+  const historyRef = useRef(loadSavedHistory()); // running conversation memory sent to Claude (plain text turns)
+
+  // Persist the thread (visible chat log) so reopening the app doesn't start fresh.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_THREAD, JSON.stringify(thread));
+    } catch {
+      // ignore storage errors (e.g. private browsing quota)
+    }
+  }, [thread]);
+
+  // Persist any web-search answers that were "filed" into the case file (records
+  // beyond the original RAW_DATA), so future sessions can retrieve them too.
+  useEffect(() => {
+    try {
+      const extras = dataset.slice(RAW_DATA.length);
+      localStorage.setItem(STORAGE_KEY_DATASET, JSON.stringify(extras));
+    } catch {
+      // ignore storage errors
+    }
+  }, [dataset]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -182,6 +237,11 @@ ${contextBlock}`;
         { role: "user", content: q },
         { role: "assistant", content: cleanAnswer },
       ].slice(-20); // keep memory bounded to the last 20 turns
+      try {
+        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRef.current));
+      } catch {
+        // ignore storage errors
+      }
 
       setThread((t) => [
         ...t,
@@ -308,6 +368,20 @@ ${contextBlock}`;
           border: 1px solid rgba(255,255,255,0.12);
           padding: 5px 10px;
           border-radius: 4px;
+        }
+        .bitc-reset-btn {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 11px;
+          letter-spacing: 0.05em;
+          color: var(--coral);
+          background: transparent;
+          border: 1px solid rgba(216,87,75,0.4);
+          padding: 5px 10px;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .bitc-reset-btn:hover {
+          background: rgba(216,87,75,0.12);
         }
         .bitc-body {
           flex: 1;
@@ -493,7 +567,26 @@ ${contextBlock}`;
             <span className="blue-word">BLUE</span> IS THE CLUE
           </span>
         </div>
-        <div className="bitc-case-chip">CASE FILE: {dataset.length} RECORDS ON HAND</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="bitc-case-chip">CASE FILE: {dataset.length} RECORDS ON HAND</div>
+          <button
+            className="bitc-reset-btn"
+            onClick={() => {
+              if (window.confirm("Clear saved chat history and filed web answers? This can't be undone.")) {
+                try {
+                  localStorage.removeItem(STORAGE_KEY_DATASET);
+                  localStorage.removeItem(STORAGE_KEY_THREAD);
+                  localStorage.removeItem(STORAGE_KEY_HISTORY);
+                } catch {
+                  // ignore
+                }
+                window.location.reload();
+              }
+            }}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       <div className="bitc-body" ref={scrollRef}>

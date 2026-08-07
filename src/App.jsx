@@ -7,10 +7,10 @@ import {
   X,
   Loader2,
   Circle,
-  Database,
   Sparkles,
   Terminal,
   BarChart3,
+  Search,
 } from "lucide-react";
 import Papa from "papaparse";
 import {
@@ -30,7 +30,7 @@ import {
 } from "recharts";
 
 const STORAGE_KEY = "vantage:sessions";
-const CHART_COLORS = ["#2BD9B9", "#F2A93B", "#7C9CF2", "#E2594B", "#B48EF0", "#5FD1F2"];
+const CHART_COLORS = ["#2A5CDE", "#F2A93B", "#7C9CF2", "#E2594B", "#B48EF0", "#5FD1F2"];
 
 const STARTER_PROMPTS = [
   "What tables are available in my Teradata database?",
@@ -114,7 +114,7 @@ function ChartBlock({ spec }) {
             <XAxis dataKey={xKey} stroke="#8B98A5" fontSize={11} />
             <YAxis stroke="#8B98A5" fontSize={11} />
             <Tooltip contentStyle={{ background: "#151B22", border: "1px solid rgba(255,255,255,0.1)" }} />
-            <Line type="monotone" dataKey={yKey} stroke="#2BD9B9" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey={yKey} stroke="#2A5CDE" strokeWidth={2} dot={false} />
           </LineChart>
         ) : chartType === "pie" ? (
           <PieChart>
@@ -132,7 +132,7 @@ function ChartBlock({ spec }) {
             <XAxis dataKey={xKey} stroke="#8B98A5" fontSize={11} />
             <YAxis stroke="#8B98A5" fontSize={11} />
             <Tooltip contentStyle={{ background: "#151B22", border: "1px solid rgba(255,255,255,0.1)" }} />
-            <Bar dataKey={yKey} fill="#2BD9B9" radius={[3, 3, 0, 0]} />
+            <Bar dataKey={yKey} fill="#2A5CDE" radius={[3, 3, 0, 0]} />
           </BarChart>
         )}
       </ResponsiveContainer>
@@ -295,7 +295,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           --border: rgba(255,255,255,0.08);
           --text: #E7ECEF;
           --muted: #8B98A5;
-          --teal: #2BD9B9;
+          --blue: #2A5CDE;
           --amber: #F2A93B;
           --coral: #E2594B;
           font-family: 'Inter', -apple-system, sans-serif;
@@ -326,15 +326,17 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           font-size: 14px;
           border-bottom: 1px solid var(--border);
         }
+        .wordmark-blue { color: var(--blue); }
+        .wordmark-white { color: var(--text); }
         .new-chat-btn {
           margin: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          background: rgba(43,217,185,0.1);
-          border: 1px solid rgba(43,217,185,0.3);
-          color: var(--teal);
+          background: rgba(42,92,222,0.1);
+          border: 1px solid rgba(42,92,222,0.3);
+          color: var(--blue);
           padding: 9px;
           border-radius: 7px;
           font-family: 'JetBrains Mono', monospace;
@@ -343,7 +345,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           letter-spacing: 0.03em;
           cursor: pointer;
         }
-        .new-chat-btn:hover { background: rgba(43,217,185,0.18); }
+        .new-chat-btn:hover { background: rgba(42,92,222,0.18); }
         .session-list {
           flex: 1;
           overflow-y: auto;
@@ -366,7 +368,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           text-overflow: ellipsis;
         }
         .session-item:hover { background: rgba(255,255,255,0.04); }
-        .session-item.active { background: rgba(43,217,185,0.1); color: var(--text); }
+        .session-item.active { background: rgba(42,92,222,0.1); color: var(--text); }
         .session-item svg { flex-shrink: 0; opacity: 0.6; }
 
         /* Connection status footer */
@@ -391,7 +393,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           font-size: 12px;
         }
         .conn-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-        .conn-dot.on { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+        .conn-dot.on { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
         .conn-dot.off { background: var(--coral); }
 
         /* Main chat area */
@@ -456,7 +458,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           align-items: center;
           gap: 10px;
         }
-        .starter-chip:hover { border-color: var(--teal); }
+        .starter-chip:hover { border-color: var(--blue); }
 
         .msg-row { display: flex; }
         .msg-row.user { justify-content: flex-end; }
@@ -468,7 +470,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           line-height: 1.6;
           white-space: pre-wrap;
         }
-        .bubble.user { background: var(--teal); color: #05231D; border-radius: 12px 12px 2px 12px; }
+        .bubble.user { background: var(--blue); color: #FFFFFF; border-radius: 12px 12px 2px 12px; }
         .bubble.assistant { background: var(--panel); border: 1px solid var(--border); border-radius: 12px 12px 12px 2px; }
         .bubble.assistant.error { border-color: rgba(226,89,75,0.4); }
 
@@ -491,7 +493,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           padding: 10px 12px;
           font-family: 'JetBrains Mono', monospace;
           font-size: 12px;
-          color: var(--teal);
+          color: var(--blue);
           white-space: pre-wrap;
           word-break: break-word;
         }
@@ -507,15 +509,15 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: rgba(43,217,185,0.1);
-          border: 1px solid rgba(43,217,185,0.3);
-          color: var(--teal);
+          background: rgba(42,92,222,0.1);
+          border: 1px solid rgba(42,92,222,0.3);
+          color: var(--blue);
           padding: 5px 9px;
           border-radius: 6px;
           font-size: 12px;
           margin-bottom: 8px;
         }
-        .attached-chip button { background: none; border: none; color: var(--teal); cursor: pointer; display: flex; }
+        .attached-chip button { background: none; border: none; color: var(--blue); cursor: pointer; display: flex; }
         .input-row { display: flex; gap: 10px; align-items: center; }
         .icon-btn {
           background: var(--panel);
@@ -530,7 +532,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           cursor: pointer;
           flex-shrink: 0;
         }
-        .icon-btn:hover { color: var(--text); border-color: var(--teal); }
+        .icon-btn:hover { color: var(--text); border-color: var(--blue); }
         .text-input {
           flex: 1;
           background: var(--panel);
@@ -541,11 +543,11 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
           font-size: 14.5px;
           outline: none;
         }
-        .text-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(43,217,185,0.15); }
+        .text-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(42,92,222,0.15); }
         .send-btn {
-          background: var(--teal);
+          background: var(--blue);
           border: none;
-          color: #05231D;
+          color: #FFFFFF;
           width: 42px;
           height: 42px;
           border-radius: 8px;
@@ -565,8 +567,11 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
 
       <div className="sidebar">
         <div className="sidebar-header">
-          <Database size={16} color="#2BD9B9" />
-          <span>BLUE IS THE CLUE</span>
+          <Search size={16} color="#2A5CDE" />
+          <span>
+            <span className="wordmark-blue">BLUE</span>
+            <span className="wordmark-white"> IS THE CLUE</span>
+          </span>
         </div>
         <button className="new-chat-btn" onClick={handleNewChat}>
           <Plus size={14} /> <span>New chat</span>
@@ -610,7 +615,7 @@ Be direct and concise. If Teradata isn't connected or a query fails, say so plai
             <div className="starter-chips">
               {STARTER_PROMPTS.map((p, i) => (
                 <button key={i} className="starter-chip" onClick={() => sendMessage(p)}>
-                  <BarChart3 size={14} color="#2BD9B9" /> {p}
+                  <BarChart3 size={14} color="#2A5CDE" /> {p}
                 </button>
               ))}
             </div>

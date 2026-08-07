@@ -1,18 +1,27 @@
-# Blue is the Clue
+# Blue is the Clue — Vantage Data Assistant
 
-A conversational medical case-file assistant. It chats naturally, answers medical questions from an embedded dataset, and falls back to a live web search when the dataset doesn't have the answer — with a thumbs up/down flow to add good web answers back into the case file for that session.
+A general-purpose data-analyst chat assistant, connected to Claude and to your live Teradata Vantage database. It can chat freely, write and run SQL queries against Vantage on its own, analyze CSV files you attach, generate charts, and keep multiple chat sessions in a sidebar.
 
 ---
 
-## Full setup, start to finish
+## ⚠️ Read this first — a real, untested risk
 
-### 1. Get an Anthropic API key
+The Teradata connection uses Teradata's official Node.js driver (`teradatasql` on npm). That driver depends on **native binary bindings** (`ffi-napi`), which are known to be unreliable in serverless environments like Vercel — they can fail to install or run correctly there, for reasons outside our control.
 
-1. Go to https://console.anthropic.com and sign in (or create an account — separate from claude.ai)
-2. Left sidebar → **API Keys** → **Create Key** → copy it somewhere safe (shown only once)
-3. Left sidebar → **Plans & Billing** → **Add funds** (even $5-10 is plenty to test with; usage is billed per token)
+**This was a known tradeoff accepted when building this** — there was no way to test the actual Teradata connection from the environment this was built in (no network access). It's entirely possible the `query_teradata` tool simply won't work once deployed. If that happens, don't assume your code or credentials are wrong first — check the Vercel function logs for the actual error, and see the **Fallback plan** section at the bottom of this file.
 
-### 2. Push this project to GitHub
+Everything else (Claude chat, sidebar, file upload, charts) does not depend on this and should work regardless.
+
+---
+
+## Setup, start to finish
+
+### 1. Get your API key and Teradata credentials
+
+- Anthropic API key: https://console.anthropic.com → API Keys (make sure you also have billing/credits set up under Plans & Billing)
+- Teradata Vantage: you need the **host**, **username**, and **password** for your instance (the same kind of credentials used in your Teradata Studio / notebook connection)
+
+### 2. Push to GitHub
 
 ```bash
 cd blue-is-the-clue
@@ -20,72 +29,64 @@ git init
 git add .
 git commit -m "initial commit"
 git branch -M main
-```
-
-Create a new empty repo at https://github.com/new, then:
-
-```bash
 git remote add origin https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
 git push -u origin main
 ```
 
-If prompted for a password and your regular GitHub password doesn't work, GitHub requires a **Personal Access Token** instead:
-- https://github.com/settings/tokens → **Generate new token (classic)** → check the **repo** scope → generate → copy it
-- Use your GitHub username as the username, and paste the token as the password when `git push` asks
-
 ### 3. Deploy on Vercel
 
-1. Go to https://vercel.com → sign in with GitHub
-2. **Add New...** → **Project** → import the repo you just pushed
-3. Before clicking Deploy, expand **Environment Variables** and add:
-   - **Name:** `ANTHROPIC_API_KEY` (type this manually — don't paste the word "Name:" along with it)
-   - **Value:** your real API key from step 1
-   - Make sure **Production** is checked
-4. Click **Deploy**
+1. https://vercel.com → **Add New...** → **Project** → import your repo
+2. Before deploying, add **four** environment variables (Settings → Environment Variables, or during import):
+   - `ANTHROPIC_API_KEY`
+   - `TERADATA_HOST`
+   - `TERADATA_USER`
+   - `TERADATA_PASSWORD`
+3. Deploy
 
-You'll get a live URL like `your-project.vercel.app` — **always use this exact URL** going forward, not any preview/deployment-specific URL Vercel shows during intermediate builds (those are frozen snapshots and won't reflect future updates).
+If the build fails specifically on installing `teradatasql`, that confirms the native-binding problem described above — see the fallback plan below.
 
-### 4. Making future changes
+### 4. Use your permanent production URL
 
-Whenever you update code locally:
-
-```bash
-git add .
-git commit -m "describe what changed"
-git push
-```
-
-Vercel auto-redeploys on every push to `main`. Check the **Deployments** tab in Vercel — the newest one should show your commit message and a green **Ready** badge within 30-90 seconds. If it shows red/**Error**, click in to see the build log.
+Always use your main `your-project.vercel.app` URL, not intermediate deployment-specific preview links.
 
 ---
 
 ## What's inside
 
-- `src/BlueIsTheClue.jsx` — the app UI (React). The medical dataset (451 sample Q&A rows) is embedded directly in this file.
-- `api/chat.js` — a Vercel serverless function that holds your API key server-side and talks to Claude via [LangChain's `ChatAnthropic`](https://js.langchain.com/) wrapper (`@langchain/anthropic` + `@langchain/core`). The browser never sees your key.
-- `package.json` — dependencies, including the LangChain packages.
+- `src/App.jsx` — the whole UI: sidebar with chat sessions (saved to `localStorage`), the chat itself, file upload, and chart rendering (via `recharts`)
+- `api/chat.js` — the backend. Holds all secrets server-side, and runs an **agent loop**: it asks Claude for a reply, and if Claude wants to run a SQL query, this function executes it against Teradata Vantage and feeds the result back to Claude, repeating until Claude has a final answer
+- `package.json` — includes `teradatasql` (Teradata's Node.js driver), `papaparse` (CSV parsing), `recharts` (charts)
 
 ## How it behaves
 
-- Casual messages (greetings, thanks, small talk) get a plain, warm conversational reply — no case-file formatting.
-- Medical questions get checked against the embedded case-file dataset. A match shows a "MATCHED IN FILE" stamp with the source record(s). No match shows "UNSOLVED" with a 👍/👎 prompt.
-- 👎 triggers a real web search (via Claude) for an answer.
-- Liking the web answer ("File it in the case") adds it to the in-memory dataset for the rest of that browser session (resets on page reload — this is intentional, not a bug).
+- **Free-form chat** — not restricted to one topic
+- **Live data queries** — Claude decides when it needs real data and calls a `query_teradata` tool; only `SELECT` statements are allowed (the backend blocks anything that looks like it modifies data, as a safety net — but treat this as a basic guard, not a full security boundary, since you should also make sure the Teradata user account itself only has read permissions)
+- **File analysis** — attach a `.csv` via the paperclip icon; it's parsed in your browser and a sample is sent to Claude along with your question
+- **Charts** — when Claude decides a chart would help, it emits a small JSON spec that gets rendered as an actual bar/line/pie chart, not just described in text
+- **Sidebar sessions** — each "New chat" starts a fresh session; all sessions persist in your browser's `localStorage`, so they survive closing/reopening (but are local to that one browser)
+- **Query transparency** — any SQL Claude actually runs is shown in a small console-style card under its reply, so you can verify what it did
 
-## Local testing (optional)
+## Fallback plan if the Teradata driver doesn't work on Vercel
+
+If `query_teradata` consistently fails (check Vercel's function logs for the real error first):
+
+1. **Confirm it's really the driver and not credentials/network** — a wrong password or an unreachable host will fail immediately with a clear auth/connection error; a native-binding problem tends to fail before it even attempts to connect, often with an error mentioning `ffi-napi`, a missing `.node` file, or an install-time build failure.
+2. **Move just the Teradata piece to a small always-on backend** instead of Vercel's serverless functions — options like Render, Railway, or Fly.io run a persistent Node (or Python) process rather than a cold-started function, which tends to be far more forgiving of native dependencies. You'd deploy a tiny Express server there exposing one endpoint (e.g. `/query`), and point `api/chat.js` at that URL instead of importing `teradatasql` directly.
+3. **Or switch the query execution to Python**, using Teradata's mature, well-tested `teradatasql` Python package, hosted as its own small service (e.g. a Python Flask app), and have the Node backend call that service.
+
+Any of these keeps the rest of the app (frontend, Claude chat, charts, file upload) completely unchanged — only the one function that runs SQL against Teradata would move.
+
+## Local testing
 
 ```bash
 npm install
-cp .env.example .env.local
-# paste your real key into .env.local
-npm install -g vercel   # once, globally
+npm install -g vercel
 vercel dev
 ```
-
-Plain `npm run dev` (just Vite) will **not** work fully on its own since it skips the `/api/chat` function — always use `vercel dev` for local testing.
+Set the four environment variables in `.env.local` first (see `vercel dev`'s prompts, or create the file manually).
 
 ## Notes
 
-- The dataset is a 451-row sample (out of ~16,400 originally) to keep the app lightweight. Some real questions may come back "unsolved" even if the full dataset would have the answer.
-- This app is for informational purposes only and is not medical advice.
-- Once live, anyone with the URL can use it and each message costs a small amount of API credit — consider adding a password gate or rate limit if you plan to share the link widely.
+- Every message costs a small amount of real Anthropic API credit.
+- The `query_teradata` tool is restricted to `SELECT` statements at the application level, but real safety should also come from using a read-only database user for `TERADATA_USER`.
+- Chat sessions are stored per-browser (`localStorage`), not shared across devices.
